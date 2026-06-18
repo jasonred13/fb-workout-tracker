@@ -1,60 +1,3 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>12-Week FB Workout Tracker</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <style>
-    body { font-family: Arial, sans-serif; margin: 0; padding: 1rem; background: #111; color: #eee; }
-    h1, h2 { margin: 0.5rem 0; }
-    select, input, button { font-size: 1rem; padding: 0.3rem; margin: 0.2rem 0; }
-    .day-header { margin-top: 0.5rem; }
-    .exercise-card {
-      border: 1px solid #444;
-      border-radius: 6px;
-      padding: 0.6rem;
-      margin: 0.4rem 0;
-      background: #1b1b1b;
-    }
-    .exercise-title { font-weight: bold; margin-bottom: 0.3rem; }
-    .set-row {
-      display: flex;
-      gap: 0.4rem;
-      align-items: center;
-      margin: 0.2rem 0;
-    }
-    .set-row input[type="number"] {
-      width: 4.5rem;
-      background: #000;
-      color: #eee;
-      border: 1px solid #555;
-      border-radius: 4px;
-      padding: 0.2rem;
-    }
-    .set-label { width: 2rem; text-align: right; }
-    .small { font-size: 0.8rem; color: #aaa; }
-    .top-bar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 0.5rem;
-      flex-wrap: wrap;
-    }
-    .btn {
-      background: #2c7be5;
-      color: #fff;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-    }
-    .btn-secondary {
-      background: #444;
-    }
-    .btn-danger {
-      background: #b33a3a;
-    }
-  </style>
-</head>
 <body>
   <div class="top-bar">
     <h1>3-Day Full Body Log</h1>
@@ -62,6 +5,7 @@
       <label for="weekSelect">Week:</label>
       <input type="number" id="weekSelect" min="1" max="12" value="1">
     </div>
+    <button class="btn btn-secondary" id="unitToggleBtn">Unit: lbs</button>
   </div>
 
   <div>
@@ -75,7 +19,7 @@
   </div>
 
   <div class="small">
-    Each main lift uses 3 × 6–8, accessories 2–3 × 8–15 (double progression).
+    Main lifts: 3 × 6–8. Accessories: 2–3 × 8–15. Double progression. Unit toggle affects labels only.
   </div>
 
   <h2 class="day-header" id="dayHeader"></h2>
@@ -92,40 +36,43 @@
   </div>
 
   <script>
-    // --- Program definition: exercises per day and default sets ---
+    // --- Global unit state ---
+    let currentUnit = "lbs"; // default
+
+    // --- Program with image placeholders ---
     const programTemplate = {
       tuesday: {
         label: "Tuesday – Full Body (Lower-bias)",
         exercises: [
-          { name: "Back Squat", sets: 3, repRange: "6–8" },
-          { name: "Romanian Deadlift", sets: 3, repRange: "8–10" },
-          { name: "Bench Press", sets: 3, repRange: "6–8" },
-          { name: "Barbell Row", sets: 3, repRange: "8–10" },
-          { name: "DB Walking Lunge (optional)", sets: 2, repRange: "10/leg" },
-          { name: "Plank (sec, optional)", sets: 2, repRange: "30–45s" }
+          { name: "Back Squat", sets: 3, repRange: "6–8", img: "images/back_squat.png" },
+          { name: "Romanian Deadlift", sets: 3, repRange: "8–10", img: "images/romanian_deadlift.png" },
+          { name: "Bench Press", sets: 3, repRange: "6–8", img: "images/bench_press.png" },
+          { name: "Barbell Row", sets: 3, repRange: "8–10", img: "images/barbell_row.png" },
+          { name: "DB Walking Lunge (optional)", sets: 2, repRange: "10/leg", img: "images/db_lunge.png" },
+          { name: "Plank (sec, optional)", sets: 2, repRange: "30–45s", img: "images/plank.png" }
         ]
       },
       thursday: {
         label: "Thursday – Full Body (Upper-bias)",
         exercises: [
-          { name: "Bench Press", sets: 3, repRange: "6–8" },
-          { name: "Pull-up / Lat Pulldown", sets: 3, repRange: "6–10" },
-          { name: "Overhead Press", sets: 3, repRange: "6–8" },
-          { name: "DB Row / Chest-Supported Row", sets: 3, repRange: "8–10" },
-          { name: "Lateral Raises", sets: 2, repRange: "12–15" },
-          { name: "DB Curls", sets: 2, repRange: "10–12" },
-          { name: "Triceps Pressdown / Extensions", sets: 2, repRange: "10–12" }
+          { name: "Bench Press", sets: 3, repRange: "6–8", img: "images/bench_press.png" },
+          { name: "Pull-up / Lat Pulldown", sets: 3, repRange: "6–10", img: "images/pullup.png" },
+          { name: "Overhead Press", sets: 3, repRange: "6–8", img: "images/overhead_press.png" },
+          { name: "DB Row / Chest-Supported Row", sets: 3, repRange: "8–10", img: "images/db_row.png" },
+          { name: "Lateral Raises", sets: 2, repRange: "12–15", img: "images/lateral_raise.png" },
+          { name: "DB Curls", sets: 2, repRange: "10–12", img: "images/db_curl.png" },
+          { name: "Triceps Pressdown / Extensions", sets: 2, repRange: "10–12", img: "images/triceps.png" }
         ]
       },
       saturday: {
         label: "Saturday – Full Body (Balanced + Conditioning)",
         exercises: [
-          { name: "Front Squat or Light Back Squat", sets: 3, repRange: "8–10" },
-          { name: "Hip Thrust or Light RDL", sets: 3, repRange: "8–10" },
-          { name: "DB Incline Bench", sets: 3, repRange: "8–10" },
-          { name: "Row / Pull-up / Lat Pulldown", sets: 3, repRange: "8–10" },
-          { name: "Core (e.g., Hanging Knee Raise)", sets: 3, repRange: "10–15" },
-          { name: "Conditioning EMOM (10 min)", sets: 1, repRange: "log notes only" }
+          { name: "Front Squat or Light Back Squat", sets: 3, repRange: "8–10", img: "images/front_squat.png" },
+          { name: "Hip Thrust or Light RDL", sets: 3, repRange: "8–10", img: "images/hip_thrust.png" },
+          { name: "DB Incline Bench", sets: 3, repRange: "8–10", img: "images/db_incline.png" },
+          { name: "Row / Pull-up / Lat Pulldown", sets: 3, repRange: "8–10", img: "images/barbell_row.png" },
+          { name: "Core (e.g., Hanging Knee Raise)", sets: 3, repRange: "10–15", img: "images/hanging_knee_raise.png" },
+          { name: "Conditioning EMOM (10 min)", sets: 1, repRange: "log notes only", img: "images/cardio.png" }
         ]
       }
     };
@@ -138,9 +85,10 @@
     const saveBtn = document.getElementById("saveBtn");
     const loadLastBtn = document.getElementById("loadLastBtn");
     const clearBtn = document.getElementById("clearBtn");
+    const unitToggleBtn = document.getElementById("unitToggleBtn");
 
     function storageKey(week, day) {
-      return `fb_log_week_${week}_day_${day}`;
+      return `fb_log_week_${week}_day_${day}_unit_${currentUnit}`;
     }
 
     function buildDayUI(dayKey) {
@@ -153,10 +101,26 @@
         card.className = "exercise-card";
         card.dataset.exerciseIndex = exIndex;
 
+        const titleRow = document.createElement("div");
+        titleRow.style.display = "flex";
+        titleRow.style.justifyContent = "space-between";
+        titleRow.style.alignItems = "center";
+
         const title = document.createElement("div");
         title.className = "exercise-title";
         title.textContent = ex.name + " (" + ex.repRange + ")";
-        card.appendChild(title);
+        titleRow.appendChild(title);
+
+        if (ex.img) {
+          const imgLink = document.createElement("a");
+          imgLink.href = ex.img;
+          imgLink.target = "_blank";
+          imgLink.className = "small";
+          imgLink.textContent = "View";
+          titleRow.appendChild(imgLink);
+        }
+
+        card.appendChild(titleRow);
 
         for (let s = 1; s <= ex.sets; s++) {
           const row = document.createElement("div");
@@ -169,8 +133,8 @@
 
           const wInput = document.createElement("input");
           wInput.type = "number";
-          wInput.step = "2.5";
-          wInput.placeholder = "lbs";
+          wInput.step = currentUnit === "lbs" ? "2.5" : "1.0";
+          wInput.placeholder = currentUnit;
           wInput.dataset.type = "weight";
           wInput.dataset.set = s;
           row.appendChild(wInput);
@@ -202,6 +166,7 @@
       const session = {
         week,
         dayKey,
+        unit: currentUnit,
         timestamp: new Date().toISOString(),
         exercises: []
       };
@@ -234,14 +199,14 @@
       });
 
       localStorage.setItem(key, JSON.stringify(session));
-      alert("Session saved for Week " + week + ", " + programTemplate[dayKey].label);
+      alert(`Session saved for Week ${week}, ${programTemplate[dayKey].label} (${currentUnit}).`);
     }
 
     function loadSession(week, dayKey) {
       const key = storageKey(week, dayKey);
       const raw = localStorage.getItem(key);
       if (!raw) {
-        alert("No saved session found for Week " + week + ", this day.");
+        alert(`No saved session found for Week ${week}, this day (${currentUnit}).`);
         return;
       }
       const session = JSON.parse(raw);
@@ -285,12 +250,18 @@
       const dayKey = daySelect.value;
       const key = storageKey(week, dayKey);
       localStorage.removeItem(key);
-      alert("Cleared saved data for Week " + week + ", this day.");
+      alert(`Cleared saved data for Week ${week}, this day (${currentUnit}).`);
       buildDayUI(dayKey);
+    });
+
+    unitToggleBtn.addEventListener("click", () => {
+      currentUnit = currentUnit === "lbs" ? "kg" : "lbs";
+      unitToggleBtn.textContent = `Unit: ${currentUnit}`;
+      // Rebuild current day UI with new placeholders/steps
+      buildDayUI(daySelect.value);
     });
 
     // Initial load
     buildDayUI(daySelect.value);
   </script>
 </body>
-</html>
