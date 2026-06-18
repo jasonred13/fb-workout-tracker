@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>12-Week FB Workout Tracker</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; padding: 1rem; background: #111; color: #eee; }
+    h1, h2 { margin: 0.5rem 0; }
+    select, input, button { font-size: 1rem; padding: 0.3rem; margin: 0.2rem 0; }
+    .day-header { margin-top: 0.5rem; }
+    .exercise-card {
+      border: 1px solid #444;
+      border-radius: 6px;
+      padding: 0.6rem;
+      margin: 0.4rem 0;
+      background: #1b1b1b;
+    }
+    .exercise-title { font-weight: bold; margin-bottom: 0.3rem; }
+    .set-row {
+      display: flex;
+      gap: 0.4rem;
+      align-items: center;
+      margin: 0.2rem 0;
+    }
+    .set-row input[type="number"] {
+      width: 4.5rem;
+      background: #000;
+      color: #eee;
+      border: 1px solid #555;
+      border-radius: 4px;
+      padding: 0.2rem;
+    }
+    .set-label { width: 2rem; text-align: right; }
+    .small { font-size: 0.8rem; color: #aaa; }
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+    .btn {
+      background: #2c7be5;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .btn-secondary {
+      background: #444;
+    }
+    .btn-danger {
+      background: #b33a3a;
+    }
+  </style>
+</head>
+<body>
+  <div class="top-bar">
+    <h1>3-Day Full Body Log</h1>
+    <div>
+      <label for="weekSelect">Week:</label>
+      <input type="number" id="weekSelect" min="1" max="12" value="1">
+    </div>
+  </div>
+
+  <div>
+    <label for="daySelect">Day:</label>
+    <select id="daySelect">
+      <option value="tuesday">Tuesday – Lower bias</option>
+      <option value="thursday">Thursday – Upper bias</option>
+      <option value="saturday">Saturday – Balanced + conditioning</option>
+    </select>
+    <button class="btn" id="loadBtn">Load Day</button>
+  </div>
+
+  <div class="small">
+    Each main lift uses 3 × 6–8, accessories 2–3 × 8–15 (double progression).
+  </div>
+
+  <h2 class="day-header" id="dayHeader"></h2>
+  <div id="exercisesContainer"></div>
+
+  <div style="margin-top: 0.8rem;">
+    <button class="btn" id="saveBtn">Save Session</button>
+    <button class="btn btn-secondary" id="loadLastBtn">Load Last Saved</button>
+    <button class="btn btn-danger" id="clearBtn">Clear This Week/Day</button>
+  </div>
+
+  <div class="small" style="margin-top:0.6rem;">
+    Data is stored locally on this device using browser localStorage.
+  </div>
+
+  <script>
+    // --- Program definition: exercises per day and default sets ---
+    const programTemplate = {
+      tuesday: {
+        label: "Tuesday – Full Body (Lower-bias)",
+        exercises: [
+          { name: "Back Squat", sets: 3, repRange: "6–8" },
+          { name: "Romanian Deadlift", sets: 3, repRange: "8–10" },
+          { name: "Bench Press", sets: 3, repRange: "6–8" },
+          { name: "Barbell Row", sets: 3, repRange: "8–10" },
+          { name: "DB Walking Lunge (optional)", sets: 2, repRange: "10/leg" },
+          { name: "Plank (sec, optional)", sets: 2, repRange: "30–45s" }
+        ]
+      },
+      thursday: {
+        label: "Thursday – Full Body (Upper-bias)",
+        exercises: [
+          { name: "Bench Press", sets: 3, repRange: "6–8" },
+          { name: "Pull-up / Lat Pulldown", sets: 3, repRange: "6–10" },
+          { name: "Overhead Press", sets: 3, repRange: "6–8" },
+          { name: "DB Row / Chest-Supported Row", sets: 3, repRange: "8–10" },
+          { name: "Lateral Raises", sets: 2, repRange: "12–15" },
+          { name: "DB Curls", sets: 2, repRange: "10–12" },
+          { name: "Triceps Pressdown / Extensions", sets: 2, repRange: "10–12" }
+        ]
+      },
+      saturday: {
+        label: "Saturday – Full Body (Balanced + Conditioning)",
+        exercises: [
+          { name: "Front Squat or Light Back Squat", sets: 3, repRange: "8–10" },
+          { name: "Hip Thrust or Light RDL", sets: 3, repRange: "8–10" },
+          { name: "DB Incline Bench", sets: 3, repRange: "8–10" },
+          { name: "Row / Pull-up / Lat Pulldown", sets: 3, repRange: "8–10" },
+          { name: "Core (e.g., Hanging Knee Raise)", sets: 3, repRange: "10–15" },
+          { name: "Conditioning EMOM (10 min)", sets: 1, repRange: "log notes only" }
+        ]
+      }
+    };
+
+    const daySelect = document.getElementById("daySelect");
+    const weekSelect = document.getElementById("weekSelect");
+    const dayHeader = document.getElementById("dayHeader");
+    const exercisesContainer = document.getElementById("exercisesContainer");
+    const loadBtn = document.getElementById("loadBtn");
+    const saveBtn = document.getElementById("saveBtn");
+    const loadLastBtn = document.getElementById("loadLastBtn");
+    const clearBtn = document.getElementById("clearBtn");
+
+    function storageKey(week, day) {
+      return `fb_log_week_${week}_day_${day}`;
+    }
+
+    function buildDayUI(dayKey) {
+      const dayData = programTemplate[dayKey];
+      dayHeader.textContent = dayData.label;
+      exercisesContainer.innerHTML = "";
+
+      dayData.exercises.forEach((ex, exIndex) => {
+        const card = document.createElement("div");
+        card.className = "exercise-card";
+        card.dataset.exerciseIndex = exIndex;
+
+        const title = document.createElement("div");
+        title.className = "exercise-title";
+        title.textContent = ex.name + " (" + ex.repRange + ")";
+        card.appendChild(title);
+
+        for (let s = 1; s <= ex.sets; s++) {
+          const row = document.createElement("div");
+          row.className = "set-row";
+
+          const label = document.createElement("div");
+          label.className = "set-label";
+          label.textContent = "S" + s;
+          row.appendChild(label);
+
+          const wInput = document.createElement("input");
+          wInput.type = "number";
+          wInput.step = "0.5";
+          wInput.placeholder = "kg";
+          wInput.dataset.type = "weight";
+          wInput.dataset.set = s;
+          row.appendChild(wInput);
+
+          const xSpan = document.createElement("span");
+          xSpan.textContent = "×";
+          row.appendChild(xSpan);
+
+          const rInput = document.createElement("input");
+          rInput.type = "number";
+          rInput.step = "1";
+          rInput.placeholder = "reps";
+          rInput.dataset.type = "reps";
+          rInput.dataset.set = s;
+          row.appendChild(rInput);
+
+          card.appendChild(row);
+        }
+
+        exercisesContainer.appendChild(card);
+      });
+    }
+
+    function saveSession() {
+      const week = parseInt(weekSelect.value, 10);
+      const dayKey = daySelect.value;
+      const key = storageKey(week, dayKey);
+
+      const session = {
+        week,
+        dayKey,
+        timestamp: new Date().toISOString(),
+        exercises: []
+      };
+
+      const cards = exercisesContainer.querySelectorAll(".exercise-card");
+      cards.forEach(card => {
+        const exIdx = parseInt(card.dataset.exerciseIndex, 10);
+        const exTemplate = programTemplate[dayKey].exercises[exIdx];
+
+        const sets = [];
+        const inputs = card.querySelectorAll("input");
+        inputs.forEach(input => {
+          const setNumber = parseInt(input.dataset.set, 10);
+          const type = input.dataset.type;
+          if (!sets[setNumber - 1]) {
+            sets[setNumber - 1] = { weight: "", reps: "" };
+          }
+          if (type === "weight") {
+            sets[setNumber - 1].weight = input.value;
+          } else if (type === "reps") {
+            sets[setNumber - 1].reps = input.value;
+          }
+        });
+
+        session.exercises.push({
+          name: exTemplate.name,
+          repRange: exTemplate.repRange,
+          sets
+        });
+      });
+
+      localStorage.setItem(key, JSON.stringify(session));
+      alert("Session saved for Week " + week + ", " + programTemplate[dayKey].label);
+    }
+
+    function loadSession(week, dayKey) {
+      const key = storageKey(week, dayKey);
+      const raw = localStorage.getItem(key);
+      if (!raw) {
+        alert("No saved session found for Week " + week + ", this day.");
+        return;
+      }
+      const session = JSON.parse(raw);
+
+      buildDayUI(dayKey);
+
+      const cards = exercisesContainer.querySelectorAll(".exercise-card");
+      cards.forEach((card, idx) => {
+        const exSession = session.exercises[idx];
+        if (!exSession) return;
+
+        const inputs = card.querySelectorAll("input");
+        inputs.forEach(input => {
+          const setNumber = parseInt(input.dataset.set, 10);
+          const setData = exSession.sets[setNumber - 1];
+          if (!setData) return;
+          if (input.dataset.type === "weight") {
+            input.value = setData.weight || "";
+          } else if (input.dataset.type === "reps") {
+            input.value = setData.reps || "";
+          }
+        });
+      });
+    }
+
+    loadBtn.addEventListener("click", () => {
+      const dayKey = daySelect.value;
+      buildDayUI(dayKey);
+    });
+
+    saveBtn.addEventListener("click", saveSession);
+
+    loadLastBtn.addEventListener("click", () => {
+      const week = parseInt(weekSelect.value, 10);
+      const dayKey = daySelect.value;
+      loadSession(week, dayKey);
+    });
+
+    clearBtn.addEventListener("click", () => {
+      const week = parseInt(weekSelect.value, 10);
+      const dayKey = daySelect.value;
+      const key = storageKey(week, dayKey);
+      localStorage.removeItem(key);
+      alert("Cleared saved data for Week " + week + ", this day.");
+      buildDayUI(dayKey);
+    });
+
+    // Initial load
+    buildDayUI(daySelect.value);
+  </script>
+</body>
+</html>
